@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Watch Guide</title>
+<meta name="description" content="Where to stream today's NFL, college football, Gator hoops, Premier League and NBA games.">
+<meta name="theme-color" content="#0b0e13">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Watch Guide">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#0b0e13; --panel:#12161d; --panel-line:#232935;
+    --ink:#eef1f5; --ink-dim:#8b93a1; --ink-faint:#5c6472;
+    --amber:#f2b705; --amber-dim:#7a5f0a; --live:#38c172; --red:#e06a5a;
+    --steel:#ffb612;
+    --nfl:#3a6df0; --cfb:#fa4616; --epl:#00a84f; --nba:#e0472a;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+    --disp: "Arial Narrow", "Helvetica Neue Condensed", Arial, sans-serif;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  html{background:var(--bg);}
+  body{background:var(--bg); color:var(--ink); font-family:var(--body);
+       padding:max(14px, env(safe-area-inset-top)) 12px max(40px, env(safe-area-inset-bottom));
+       max-width:480px; margin:0 auto;}
+  button{font:inherit;}
+
+  .navbar{background:linear-gradient(180deg,#161b23,#0e1218);
+    border:1px solid var(--panel-line); border-radius:14px;
+    padding:14px; margin-bottom:16px; position:relative; overflow:hidden;}
+  .navbar::before{content:""; position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(242,183,5,.025) 0 1px, transparent 1px 3px);}
+  .eyebrow{font-family:var(--mono); font-size:9.5px; letter-spacing:.13em;
+    color:var(--amber); text-transform:uppercase; display:flex; align-items:center;
+    justify-content:space-between; gap:6px; margin-bottom:10px; position:relative;}
+  .eyebrow .left{display:flex; align-items:center; gap:6px; min-width:0;}
+  .eyebrow .right{display:flex; gap:6px; flex-shrink:0;}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--live);
+    box-shadow:0 0 6px var(--live); flex-shrink:0;}
+  .eyebrow .dot.loading{background:var(--amber); box-shadow:0 0 6px var(--amber);
+    animation:pulse 1s ease-in-out infinite;}
+  .eyebrow .dot.err{background:var(--red); box-shadow:0 0 6px var(--red); animation:none;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  @media (prefers-reduced-motion: reduce){ .eyebrow .dot.loading, .panelmsg .spin, .live-dot{animation:none;} }
+  .pill-btn{appearance:none; background:none; border:1px solid var(--panel-line);
+    color:var(--ink-dim); border-radius:20px; padding:4px 10px; cursor:pointer;
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;}
+  .pill-btn:active, .pill-btn[aria-expanded="true"]{color:var(--amber); border-color:var(--amber-dim);}
+  .pill-btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+
+  .datectrl{display:flex; align-items:center; justify-content:space-between; gap:8px; position:relative;}
+  .arrow{appearance:none; border:1px solid var(--panel-line);
+    background:rgba(255,255,255,.03); color:var(--ink);
+    width:44px; height:44px; border-radius:10px; font-size:19px; line-height:1;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:pointer;}
+  .arrow:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .arrow:active{background:rgba(242,183,5,.12); border-color:var(--amber-dim);}
+  .arrow:disabled{opacity:.22; cursor:default;}
+
+  .datelabel{text-align:center; flex:1; min-width:0;}
+  .dow{font-family:var(--disp); font-weight:800; font-stretch:condensed;
+    text-transform:uppercase; font-size:22px; letter-spacing:.02em;}
+  .dow.is-today{color:var(--amber);}
+  .dfull{font-size:11.5px; color:var(--ink-dim); margin-top:1px;}
+
+  .dots{display:flex; justify-content:center; gap:4px; margin-top:7px; position:relative;}
+  .pip{width:22px; height:22px; border:none; padding:0; cursor:pointer; background:none;
+    display:flex; align-items:center; justify-content:center;}
+  .pip::after{content:""; width:7px; height:7px; border-radius:50%; background:var(--panel-line);}
+  .pip.ready::after{background:#3c5a45;}
+  .pip.on::after{background:var(--amber);}
+  .pip:focus-visible{outline:2px solid var(--amber); outline-offset:-2px; border-radius:50%;}
+
+  /* ---- my services panel ---- */
+  .svcpanel{background:var(--panel); border:1px solid var(--amber-dim); border-radius:12px;
+    padding:14px; margin-bottom:16px;}
+  .svcpanel h2{font-family:var(--disp); font-weight:800; font-stretch:condensed; text-transform:uppercase;
+    font-size:17px; margin:0 0 4px; letter-spacing:.02em;}
+  .svcpanel p{font-size:12px; color:var(--ink-dim); margin:0 0 12px; line-height:1.5;}
+  .svcgrid{display:flex; flex-wrap:wrap; gap:7px;}
+  .svcopt{appearance:none; cursor:pointer; border:1px solid var(--panel-line); background:rgba(255,255,255,.03);
+    color:var(--ink-dim); border-radius:20px; padding:7px 12px; font-size:13px; min-height:36px;}
+  .svcopt[aria-pressed="true"]{background:var(--amber); color:#1a1400; border-color:var(--amber); font-weight:650;}
+  .svcopt:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+  .svcdone{margin-top:14px; display:flex; justify-content:flex-end;}
+
+  section{margin-bottom:20px;}
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between;
+    padding-bottom:8px; margin-bottom:10px; border-bottom:2px solid var(--line,var(--panel-line));}
+  .sec-title{font-family:var(--disp); font-weight:800; font-stretch:condensed;
+    text-transform:uppercase; font-size:18px; letter-spacing:.02em;
+    display:flex; align-items:center; gap:8px;}
+  .sec-title .chip{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .sec-count{font-family:var(--mono); font-size:10px; color:var(--ink-dim);
+    letter-spacing:.06em; text-transform:uppercase;}
+  .sec-empty{font-size:12.5px; color:var(--ink-dim); padding:2px 2px 4px;}
+
+  .game{background:var(--panel); border:1px solid var(--panel-line);
+    border-left:3px solid var(--line,var(--panel-line)); border-radius:10px;
+    padding:11px 13px; margin-bottom:8px;}
+  .game.steelers{border-left-color:var(--steel);
+    background:linear-gradient(90deg, rgba(255,182,18,.10), var(--panel) 58%);}
+  .game.fav{box-shadow:inset 3px 0 0 0 rgba(242,183,5,.5);}
+  .game.done{opacity:.62;}
+  .favtag{font-family:var(--mono); font-size:9px; letter-spacing:.12em;
+    color:var(--amber); text-transform:uppercase; margin-bottom:5px;
+    display:flex; align-items:center; gap:5px;}
+  .favtag::before{content:"\2605"; font-size:10px; letter-spacing:0;}
+  .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .matchup{font-size:15px; font-weight:650; line-height:1.3; min-width:0; overflow-wrap:anywhere;}
+  .matchup .at{color:var(--ink-dim); font-weight:400; padding:0 2px;}
+  .matchup .rk{color:var(--ink-dim); font-weight:500; font-size:12px; font-family:var(--mono);}
+  .time{font-family:var(--mono); font-size:12.5px; color:var(--amber);
+    white-space:nowrap; text-align:right; line-height:1.35;}
+  .time.live{color:var(--live);}
+  .time.final{color:var(--ink-dim);}
+  .time .score{display:block; color:var(--ink); font-weight:600;}
+  .live-dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--live);
+    margin-right:4px; vertical-align:1px; animation:pulse 1.2s ease-in-out infinite;}
+
+  .watch{margin-top:9px; display:grid; grid-template-columns:auto 1fr; gap:6px 8px; align-items:start;}
+  .watch .lbl{font-family:var(--mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-faint); padding-top:5px; white-space:nowrap;}
+  .watch .lbl.stream{color:var(--amber);}
+  .chips{display:flex; flex-wrap:wrap; gap:5px;}
+  .badge{font-family:var(--mono); font-size:10.5px; letter-spacing:.02em;
+    padding:3px 8px; border-radius:20px; border:1px solid var(--panel-line);
+    color:var(--ink); background:rgba(255,255,255,.03); white-space:nowrap;}
+  .badge.svc{font-family:var(--body); font-size:12px; font-weight:600; padding:4px 10px;
+    color:var(--amber); border-color:var(--amber-dim); background:rgba(242,183,5,.06);}
+  .badge.svc.mine{background:var(--amber); color:#1a1400; border-color:var(--amber);}
+  .badge.svc.other{color:var(--ink-dim); border-color:var(--panel-line); background:none; font-weight:500;}
+  .morewrap{display:contents;} .morewrap[hidden]{display:none;}
+  .badge.more{cursor:pointer; color:var(--ink-dim); border-style:dashed; background:none;}
+  .badge.tv{color:var(--ink-dim);}
+  .nomine{font-size:11.5px; color:var(--red); padding-top:4px;}
+  .badge.inmkt{color:var(--live); border-color:rgba(56,193,114,.45);
+    background:rgba(56,193,114,.10); font-weight:600;}
+  .badge.check{color:var(--steel); border-color:rgba(255,182,18,.45); background:rgba(255,182,18,.08);
+    font-weight:600; text-decoration:none;}
+  .note{font-size:11.5px; color:var(--ink-dim); margin-top:7px; line-height:1.45;}
+  .note a{color:var(--amber);}
+
+  .nfl-line{--line:var(--nfl);} .cfb-line{--line:var(--cfb);}
+  .epl-line{--line:var(--epl);} .nba-line{--line:var(--nba);}
+
+  .panelmsg{text-align:center; padding:30px 16px; color:var(--ink-dim);
+    font-size:13px; line-height:1.65; background:var(--panel);
+    border:1px solid var(--panel-line); border-radius:12px;}
+  .panelmsg b{color:var(--ink);}
+  .panelmsg .spin{display:inline-block; width:22px; height:22px; margin-bottom:12px;
+    border:2px solid var(--panel-line); border-top-color:var(--amber);
+    border-radius:50%; animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .retry{margin-top:14px; appearance:none; background:none;
+    border:1px solid var(--amber-dim); color:var(--amber); border-radius:20px;
+    padding:7px 16px; font-family:var(--mono); font-size:11px; cursor:pointer;
+    text-transform:uppercase; letter-spacing:.08em;}
+  .hint{font-size:12px; color:var(--ink-dim); background:rgba(242,183,5,.06); border:1px dashed var(--amber-dim);
+    border-radius:10px; padding:9px 12px; margin-bottom:14px; line-height:1.5;}
+  .hint button{appearance:none; background:none; border:none; color:var(--amber); padding:0; cursor:pointer;
+    text-decoration:underline; font-size:12px;}
+
+  footer{margin-top:22px; padding-top:14px; border-top:1px dashed var(--panel-line);
+    font-size:11px; color:var(--ink-dim); line-height:1.6; text-align:center;}
+  footer a{color:var(--ink-dim);}
+</style>
+</head>
+<body>
+
+  <div class="navbar">
+    <div class="eyebrow">
+      <div class="left"><span class="dot" id="statusDot"></span><span id="statusText" aria-live="polite">Loading</span></div>
+      <div class="right">
+        <button class="pill-btn" id="svcBtn" type="button" aria-expanded="false" aria-controls="svcPanel">My services</button>
+        <button class="pill-btn" id="refreshBtn" type="button">Refresh</button>
+      </div>
+    </div>
+    <div class="datectrl">
+      <button class="arrow" id="prevBtn" type="button" aria-label="Previous day">&#8249;</button>
+      <div class="datelabel">
+        <div class="dow" id="dowLabel">&mdash;</div>
+        <div class="dfull" id="dateLabel">&mdash;</div>
+      </div>
+      <button class="arrow" id="nextBtn" type="button" aria-label="Next day">&#8250;</button>
+    </div>
+    <div class="dots" id="dots"></div>
+  </div>
+
+  <div class="svcpanel" id="svcPanel" hidden>
+    <h2>My streaming services</h2>
+    <p>Tap the ones you have. They'll be highlighted on every game. Saved on this device only.</p>
+    <div class="svcgrid" id="svcGrid"></div>
+    <div class="svcdone"><button class="retry" type="button" id="svcDone" style="margin-top:0">Done</button></div>
+  </div>
+
+  <div id="content"></div>
+  <footer id="foot"></footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // =====================================================================
+  //  STREAMING SERVICES
+  //  Edit these two tables when carriage deals change.
+  // =====================================================================
+  var SERVICES = [
+    ["peacock","Peacock"], ["paramount","Paramount+"], ["espn","ESPN Unlimited"], ["espnplus","ESPN+ / Select"],
+    ["foxone","Fox One"], ["prime","Prime Video"], ["netflix","Netflix"], ["hbomax","HBO Max"],
+    ["disney","Disney+"], ["appletv","Apple TV"],
+    ["yttv","YouTube TV"], ["hulu","Hulu + Live TV"], ["fubo","Fubo"], ["slingO","Sling Orange"], ["slingB","Sling Blue"],
+    ["sundayticket","NFL Sunday Ticket"], ["nflplus","NFL+"], ["leaguepass","NBA League Pass"],
+    ["antenna","Antenna (free)"], ["cwapp","CW app (free)"]
+  ];
+  var SVC_NAME = {}; SERVICES.forEach(function(s){ SVC_NAME[s[0]] = s[1]; });
+
+  // Channel (as ESPN names it, normalized) -> services that carry it live.
+  var CARRIAGE = {
+    CBS:        ["paramount","yttv","hulu","fubo","antenna"],
+    FOX:        ["foxone","yttv","hulu","fubo","slingB","antenna"],
+    NBC:        ["peacock","yttv","hulu","fubo","slingB","antenna"],
+    ABC:        ["espn","yttv","hulu","fubo","antenna"],
+    ESPN:       ["espn","yttv","hulu","fubo","slingO"],
+    ESPN2:      ["espn","yttv","hulu","fubo","slingO"],
+    ESPNU:      ["espn","yttv","hulu","fubo"],
+    ESPNNEWS:   ["espn","yttv","hulu","fubo"],
+    SECNETWORK: ["espn","yttv","hulu","fubo"],
+    SECN:       ["espn","yttv","hulu","fubo"],
+    ACCNETWORK: ["espn","yttv","hulu","fubo"],
+    ACCN:       ["espn","yttv","hulu","fubo"],
+    ESPNEWS:    ["espn","yttv","hulu","fubo"],
+    ESPNPLUS:   ["espnplus","espn"],
+    SECNPLUS:   ["espnplus","espn"],
+    ACCNX:      ["espnplus","espn"],
+    FS1:        ["foxone","yttv","hulu","fubo","slingB"],
+    FS2:        ["foxone","fubo"],
+    BTN:        ["foxone","yttv","hulu","fubo"],
+    BIGTENNETWORK: ["foxone","yttv","hulu","fubo"],
+    CBSSN:      ["yttv","hulu","fubo"],
+    CBSSPORTSNETWORK: ["yttv","hulu","fubo"],
+    TNT:        ["hbomax","yttv","hulu","slingO","slingB"],
+    TBS:        ["hbomax","yttv","hulu","slingO","slingB"],
+    TRUTV:      ["hbomax","yttv","hulu","slingO","slingB"],
+    USANET:     ["yttv","hulu","fubo","slingB"],
+    USA:        ["yttv","hulu","fubo","slingB"],
+    USANETWORK: ["yttv","hulu","fubo","slingB"],
+    NFLNETWORK: ["yttv","hulu","fubo","slingB","nflplus"],
+    NFLN:       ["yttv","hulu","fubo","slingB","nflplus"],
+    NFLNET:     ["yttv","hulu","fubo","slingB","nflplus"],
+    NBATV:      ["yttv","hulu","fubo","leaguepass"],
+    CW:         ["cwapp","yttv","hulu","fubo","antenna"],
+    THECW:      ["cwapp","yttv","hulu","fubo","antenna"],
+    PEACOCK:    ["peacock"],
+    PARAMOUNTPLUS: ["paramount"],
+    PRIMEVIDEO: ["prime"],
+    AMAZONPRIMEVIDEO: ["prime"],
+    PRIME:      ["prime"],
+    NETFLIX:    ["netflix"],
+    HBOMAX:     ["hbomax"],
+    MAX:        ["hbomax"],
+    DISNEYPLUS: ["disney"],
+    APPLETV:    ["appletv"],
+    APPLETVPLUS:["appletv"],
+    FOXONE:     ["foxone"]
+  };
+  function norm(name){ return String(name||"").toUpperCase().replace(/\+/g,"PLUS").replace(/[^A-Z0-9]/g,""); }
+  // Spanish-language simulcasts: skip.
+  var SKIP_CHANNEL = /^(tele|telemundo|universo|univision|unimas|tudn|galavision|espn deportes|fox deportes)$/i;
+  var BIG_NETWORKS = {ABC:1, CBS:1, NBC:1, FOX:1, ESPN:1, ESPN2:1};
+  var NATIONAL_NBA = {NBC:1, ABC:1, ESPN:1, ESPN2:1, PRIMEVIDEO:1, AMAZONPRIMEVIDEO:1, PRIME:1, PEACOCK:1};
+
+  // =====================================================================
+  //  LEAGUES
+  // =====================================================================
+  var MARKET = "Anderson County / Knoxville";
+  var GATORS_ID = "57";
+  var ESPN_API = "https://site.api.espn.com/apis/site/v2/sports/";
+  var FEEDS = {
+    nfl:"football/nfl/scoreboard?dates=",
+    cfb:"football/college-football/scoreboard?groups=80&limit=300&dates=",
+    cbb:"basketball/mens-college-basketball/scoreboard?groups=50&limit=400&dates=",
+    epl:"soccer/eng.1/scoreboard?dates=",
+    nba:"basketball/nba/scoreboard?dates="
+  };
+  var META = {
+    nfl:{title:"NFL", color:"var(--nfl)", cls:"nfl-line", empty:"No NFL games."},
+    cfb:{title:"College Football", color:"var(--cfb)", cls:"cfb-line", empty:"No big college football games."},
+    cbb:{title:"Gator Basketball", color:"var(--cfb)", cls:"cfb-line", empty:"No Gator basketball."},
+    epl:{title:"Premier League", color:"var(--epl)", cls:"epl-line", empty:"No Premier League fixtures."},
+    nba:{title:"NBA", color:"var(--nba)", cls:"nba-line", empty:"No NBA games."}
+  };
+  var ORDER = ["nfl","cfb","cbb","epl","nba"];
+
+  var FAVS = [
+    {label:"Gators",   test:function(t){ return t.id === GATORS_ID && /Florida/.test(t.name); }},
+    {label:"Steelers", test:function(t){ return /Steelers/i.test(t.name); }},
+    {label:"76ers",    test:function(t){ return /76ers/i.test(t.name); }},
+    {label:"Chelsea",  test:function(t){ return /^Chelsea\b/i.test(t.name); }}
+  ];
+  var FAV_RANK = FAVS.map(function(f){ return f.label; });
+
+  // ============ storage (can be blocked in private mode) ============
+  function lsGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+  var mine = {};
+  try { (JSON.parse(lsGet("wg:services") || "[]") || []).forEach(function(id){ if (SVC_NAME[id]) mine[id] = true; }); } catch(e){}
+  function hasMine(){ return Object.keys(mine).length > 0; }
+
+  // ============ dates ============
+  function key(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function parse(k){ var p=k.split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
+  function shift(k,n){ var d=parse(k); d.setDate(d.getDate()+n); return key(d); }
+  var DOW=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function longDate(k){ var d=parse(k); return DOW[d.getDay()]+", "+MON[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear(); }
+  var ET_TIME = new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York", hour:"numeric", minute:"2-digit"});
+  var ET_PARTS = new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York", weekday:"short", hour:"numeric", hour12:false});
+  function etInfo(iso){
+    var d = new Date(iso), o = {};
+    ET_PARTS.formatToParts(d).forEach(function(p){ o[p.type] = p.value; });
+    return {time: ET_TIME.format(d) + " ET", weekday: o.weekday, hour: (+o.hour) % 24};
+  }
+
+  var TODAY = key(new Date());
+  var DAYS = []; for (var i=0;i<7;i++) DAYS.push(shift(TODAY,i));
+  var current = TODAY;
+
+  // dateKey -> {state:"loading"|"ok"|"err", data:{league:[games]|null}, fetchedAt, promise}
+  var cache = {};
+  var generation = 0;
+
+  // ============ turn an ESPN event into a game ============
+  function team(c){
+    var r = c.curatedRank && c.curatedRank.current;
+    return {
+      id: String(c.team && c.team.id || ""),
+      name: (c.team && (c.team.displayName || c.team.name)) || "TBD",
+      rank: (r >= 1 && r <= 25) ? r : null,
+      score: c.score
+    };
+  }
+
+  function toGame(lg, ev){
+    var comp = (ev.competitions || [])[0] || {};
+    var cs = comp.competitors || [];
+    var home = cs.filter(function(c){ return c.homeAway === "home"; })[0] || cs[0] || {};
+    var away = cs.filter(function(c){ return c.homeAway === "away"; })[0] || cs[1] || {};
+    var g = {away: team(away), home: team(home), tv: [], svcs: [], rawStreams: [], nkeys: {}};
+
+    var seen = {};
+    function addSvc(id){ if (!seen[id]){ seen[id] = 1; g.svcs.push(id); } }
+    (comp.geoBroadcasts || []).forEach(function(b){
+      var name = b.media && b.media.shortName;
+      if (!name || SKIP_CHANNEL.test(name) || /radio/i.test((b.type && b.type.shortName) || "")) return;
+      var k = norm(name);
+      if (g.nkeys[k]) return;
+      g.nkeys[k] = 1;
+      var isStream = /stream|web/i.test((b.type && b.type.shortName) || "");
+      var carried = CARRIAGE[k];
+      if (!isStream) g.tv.push(name);
+      if (carried) carried.forEach(addSvc);
+      else if (isStream) g.rawStreams.push(name);
+    });
+
+    var st = (ev.status && ev.status.type) || {};
+    g.state = st.state || "pre";              // pre | in | post
+    g.detail = st.shortDetail || st.detail || "";
+    var et = etInfo(ev.date);
+    g.time = ev.timeValid === false || /TBD|TBA/i.test(g.detail) ? "TBD" : et.time;
+
+    // NFL: regional CBS/FOX Sunday-afternoon games vs national ones
+    if (lg === "nfl"){
+      var sundayAfternoon = et.weekday === "Sun" && et.hour < 19;
+      var nationalNet = ["NBC","ESPN","ESPN2","ABC","NFLNETWORK","NFLNET","NFLN","PRIMEVIDEO","NETFLIX","PEACOCK","YOUTUBE"]
+        .some(function(k){ return g.nkeys[k]; });
+      var cbsFox = g.nkeys.CBS || g.nkeys.FOX;
+      var regional = sundayAfternoon && cbsFox && !nationalNet;
+      if (regional) addSvc("sundayticket");
+      if (/Steelers/.test(g.away.name + g.home.name)){
+        g.steelers = true;
+        // No network announced yet -> no badge. CBS/FOX outside Sunday afternoon (holidays, Saturdays) is national.
+        g.market = regional ? "check" : (nationalNet || cbsFox) ? "in" : null;
+      }
+    }
+    // NBA: games without a national broadcast are on League Pass (out of market) / local TV
+    if (lg === "nba"){
+      var national = Object.keys(g.nkeys).some(function(k){ return NATIONAL_NBA[k]; });
+      if (!national){ addSvc("leaguepass"); if (!g.tv.length) g.tv.push("Local TV"); }
+    }
+    return g;
+  }
+
+  function keepGame(lg, ev, g){
+    if (lg === "cbb") return g.away.id === GATORS_ID || g.home.id === GATORS_ID;
+    if (lg === "cfb"){
+      return g.away.id === GATORS_ID || g.home.id === GATORS_ID || g.away.rank || g.home.rank ||
+        Object.keys(g.nkeys).some(function(k){ return BIG_NETWORKS[k]; });
+    }
+    return true;
+  }
+
+  function favOf(g){
+    for (var i=0;i<FAVS.length;i++){
+      if (FAVS[i].test(g.away) || FAVS[i].test(g.home)) return FAVS[i].label;
+    }
+    return null;
+  }
+
+  // ============ fetch one day from ESPN ============
+  function fetchDay(k, force){
+    var c = cache[k];
+    if (c && c.state === "loading") return c.promise;
+    if (!force && c && c.state === "ok") return Promise.resolve();
+
+    var gen = generation;
+    var ymd = k.replace(/-/g,"");
+    var p = Promise.all(ORDER.map(function(lg){
+      return fetch(ESPN_API + FEEDS[lg] + ymd)
+        .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function(d){
+          return (d.events || []).map(function(ev){ var g = toGame(lg, ev); return keepGame(lg, ev, g) ? g : null; })
+            .filter(Boolean);
+        })
+        .catch(function(){ return null; });   // null = this league failed to load
+    })).then(function(results){
+      if (gen !== generation) return;
+      var data = {}, failed = 0;
+      ORDER.forEach(function(lg, i){ data[lg] = results[i]; if (!results[i]) failed++; });
+      cache[k] = failed === ORDER.length
+        ? {state:"err", err:"Can't reach ESPN's schedule. Check your connection."}
+        : {state:"ok", data:data, fetchedAt:Date.now()};
+      render();
+    });
+
+    cache[k] = {state:"loading", promise:p, data: c && c.data};
+    return p;
+  }
+
+  function loadAll(force){
+    generation++;
+    var gen = generation;
+    if (force) cache = {};
+    var chain = fetchDay(current, force);
+    DAYS.forEach(function(k){
+      if (k === current) return;
+      chain = chain.then(function(){ if (gen === generation) return fetchDay(k, force); });
+    });
+    render();
+  }
+
+  // ============ render ============
+  function esc(s){ var d=document.createElement("div"); d.textContent = s==null?"":String(s); return d.innerHTML; }
+
+  function paintStatus(){
+    var dot = document.getElementById("statusDot"), txt = document.getElementById("statusText");
+    var loading = DAYS.some(function(k){ return cache[k] && cache[k].state==="loading"; });
+    var done = DAYS.filter(function(k){ return cache[k] && cache[k].state==="ok"; }).length;
+    var errs = DAYS.filter(function(k){ return cache[k] && cache[k].state==="err"; }).length;
+    dot.className = "dot" + (loading ? " loading" : (errs && !done) ? " err" : "");
+    txt.textContent = loading ? ("Loading — " + done + "/7 days")
+                    : errs ? (done + "/7 days · " + errs + " failed")
+                    : "Live · 7 days";
+  }
+
+  function paintDots(){
+    var wrap = document.getElementById("dots"); wrap.innerHTML = "";
+    DAYS.forEach(function(k){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "pip" + (k===current?" on":"") + (cache[k] && cache[k].state==="ok" ? " ready" : "");
+      b.setAttribute("aria-label", longDate(k));
+      if (k===current) b.setAttribute("aria-current","date");
+      b.addEventListener("click", function(){ current=k; render(); });
+      wrap.appendChild(b);
+    });
+  }
+
+  function teamHTML(t){
+    return (t.rank ? '<span class="rk">#'+t.rank+'</span> ' : '') + esc(t.name);
+  }
+
+  function timeHTML(g){
+    var score = (g.away.score != null && g.home.score != null && g.state !== "pre")
+      ? '<span class="score">' + esc(g.away.score) + '–' + esc(g.home.score) + '</span>' : '';
+    if (g.state === "in")   return '<div class="time live"><span class="live-dot"></span>' + esc(g.detail || "Live") + score + '</div>';
+    if (g.state === "post") return '<div class="time final">' + esc(g.detail || "Final") + score + '</div>';
+    return '<div class="time">' + esc(g.time) + '</div>';
+  }
+
+  function streamHTML(g, idx){
+    var ids = g.svcs.slice();
+    var chips = "";
+    if (hasMine()){
+      var yours = ids.filter(function(id){ return mine[id]; });
+      var others = ids.filter(function(id){ return !mine[id]; });
+      yours.forEach(function(id){ chips += '<span class="badge svc mine">'+esc(SVC_NAME[id])+'</span>'; });
+      g.rawStreams.forEach(function(n){ chips += '<span class="badge svc">'+esc(n)+'</span>'; });
+      var shown = others.slice(0, 3), hidden = others.slice(3);
+      shown.forEach(function(id){ chips += '<span class="badge svc other">'+esc(SVC_NAME[id])+'</span>'; });
+      if (hidden.length){
+        chips += '<button type="button" class="badge more" data-more="'+idx+'">+'+hidden.length+' more</button>' +
+          '<span class="morewrap" hidden data-hidden="'+idx+'">' +
+          hidden.map(function(id){ return '<span class="badge svc other">'+esc(SVC_NAME[id])+'</span>'; }).join("") + '</span>';
+      }
+      var none = !yours.length && (ids.length || g.rawStreams.length) ? '<div class="nomine">Not on your services</div>' : '';
+      return chips ? '<div class="chips">' + chips + '</div>' + none : '';
+    }
+    ids.forEach(function(id){ chips += '<span class="badge svc">'+esc(SVC_NAME[id])+'</span>'; });
+    g.rawStreams.forEach(function(n){ chips += '<span class="badge svc">'+esc(n)+'</span>'; });
+    return chips ? '<div class="chips">' + chips + '</div>' : '';
+  }
+
+  var gameIdx = 0;
+  function gameHTML(lg, g){
+    var fav = favOf(g), idx = gameIdx++;
+    var stream = streamHTML(g, idx);
+    var tv = g.tv.map(function(t){ return '<span class="badge tv">'+esc(t)+'</span>'; }).join("");
+    var extra = "";
+    if (g.market === "in")    extra += '<span class="badge inmkt">✓ IN MARKET</span>';
+    if (g.market === "check") extra += '<a class="badge check" href="https://506sports.com/nfl.php" target="_blank" rel="noopener">? CHECK LOCAL MAP</a>';
+
+    var note = "";
+    if (g.market === "in") note = "National broadcast — airs everywhere.";
+    if (g.market === "check") note = "Regional game. Airs on your local " + (g.nkeys.CBS ? "CBS" : "FOX") +
+      " only if Knoxville is in the coverage map; otherwise use Sunday Ticket.";
+
+    return '<div class="game '+META[lg].cls+(g.steelers?' steelers':'')+(fav?' fav':'')+(g.state==="post"?' done':'')+'">' +
+      (fav ? '<div class="favtag">'+esc(fav)+'</div>' : '') +
+      '<div class="row1"><div class="matchup">'+teamHTML(g.away)+' <span class="at">at</span> '+teamHTML(g.home)+'</div>' +
+      timeHTML(g) + '</div>' +
+      '<div class="watch">' +
+        (stream ? '<div class="lbl stream">▶ Stream</div><div>'+stream+'</div>' :
+                  '<div class="lbl stream">▶ Stream</div><div class="chips"><span class="badge tv">Not listed yet</span></div>') +
+        ((tv || extra) ? '<div class="lbl">TV</div><div class="chips">'+tv+extra+'</div>' : '') +
+      '</div>' +
+      (note ? '<div class="note">'+esc(note)+'</div>' : '') +
+      '</div>';
+  }
+
+  function render(){
+    var d = parse(current), isToday = (current === TODAY);
+    var dl = document.getElementById("dowLabel");
+    dl.textContent = isToday ? "Today" : DOW[d.getDay()];
+    dl.classList.toggle("is-today", isToday);
+    document.getElementById("dateLabel").textContent =
+      (isToday ? DOW[d.getDay()]+", " : "") + MON[d.getMonth()]+" "+d.getDate()+", "+d.getFullYear();
+    document.getElementById("prevBtn").disabled = (current <= DAYS[0]);
+    document.getElementById("nextBtn").disabled = (current >= DAYS[6]);
+    paintDots(); paintStatus();
+
+    var c = document.getElementById("content"); c.innerHTML = "";
+    var entry = cache[current];
+
+    if (!entry || (entry.state === "loading" && !entry.data)){
+      c.innerHTML = '<div class="panelmsg"><span class="spin"></span><br>Loading schedules…<br><b>' +
+        esc(longDate(current)) + '</b></div>';
+      if (!entry) fetchDay(current);
+      return;
+    }
+    if (entry.state === "err"){
+      c.innerHTML = '<div class="panelmsg">Couldn\'t load this day.<br><b>' + esc(entry.err) + '</b>' +
+        '<br><button class="retry" type="button" id="retryBtn">Try again</button></div>';
+      document.getElementById("retryBtn").addEventListener("click", function(){
+        delete cache[current]; render();
+      });
+      return;
+    }
+
+    var html = "";
+    if (!hasMine()){
+      html += '<div class="hint">Tip: <button type="button" id="hintBtn">pick your streaming services</button> ' +
+        'and they\'ll be highlighted on every game.</div>';
+    }
+
+    var day = entry.data || {};
+    var total = ORDER.reduce(function(n,k){ return n + ((day[k]||[]).length); }, 0);
+    if (!total && ORDER.every(function(k){ return day[k]; })){
+      html += '<div class="panelmsg">Nothing on ' + (isToday ? 'today' : 'this day') + ' across your leagues.' +
+        (current < DAYS[6] ? '<br>Tap › for the next day.' : '') + '</div>';
+    } else {
+      gameIdx = 0;
+      ORDER.forEach(function(lg){
+        var meta = META[lg], games = day[lg];
+        if (games && !games.length && lg === "cbb") return; // hide empty Gator hoops
+        html += '<section><div class="sec-head" style="--line:'+meta.color+'">' +
+          '<div class="sec-title"><span class="chip" style="background:'+meta.color+'"></span>'+meta.title+'</div>' +
+          (games && games.length ? '<div class="sec-count">'+games.length+(games.length===1?" game":" games")+'</div>' : '') +
+          '</div>';
+        if (!games) html += '<div class="sec-empty">Couldn\'t load ' + meta.title + '. Tap Refresh to try again.</div>';
+        else if (!games.length) html += '<div class="sec-empty">'+meta.empty+'</div>';
+        else {
+          games.map(function(g,i){ return {g:g, i:i, r: favOf(g) ? FAV_RANK.indexOf(favOf(g)) : 99}; })
+            .sort(function(x,y){ return x.r !== y.r ? x.r - y.r : x.i - y.i; })
+            .forEach(function(it){ html += gameHTML(lg, it.g); });
+        }
+        html += '</section>';
+      });
+    }
+    c.innerHTML = html;
+
+    var hb = document.getElementById("hintBtn");
+    if (hb) hb.addEventListener("click", function(){ toggleServices(true); });
+    c.querySelectorAll("[data-more]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var h = c.querySelector('[data-hidden="'+btn.getAttribute("data-more")+'"]');
+        if (h) h.hidden = false;
+        btn.remove();
+      });
+    });
+  }
+
+  // ============ my services panel ============
+  function paintServices(){
+    var grid = document.getElementById("svcGrid"); grid.innerHTML = "";
+    SERVICES.forEach(function(s){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "svcopt"; b.textContent = s[1];
+      b.setAttribute("aria-pressed", mine[s[0]] ? "true" : "false");
+      b.addEventListener("click", function(){
+        if (mine[s[0]]) delete mine[s[0]]; else mine[s[0]] = true;
+        lsSet("wg:services", JSON.stringify(Object.keys(mine)));
+        b.setAttribute("aria-pressed", mine[s[0]] ? "true" : "false");
+        render();
+      });
+      grid.appendChild(b);
+    });
+  }
+  function toggleServices(open){
+    var panel = document.getElementById("svcPanel"), btn = document.getElementById("svcBtn");
+    var show = open == null ? panel.hidden : open;
+    panel.hidden = !show;
+    btn.setAttribute("aria-expanded", show ? "true" : "false");
+    if (show){ paintServices(); panel.scrollIntoView({block:"nearest"}); }
+  }
+
+  document.getElementById("foot").innerHTML =
+    "Schedules from ESPN. Times Eastern. Streaming options are for live games and assume you have the " +
+    "right plan (e.g. local channels on your live-TV service). Sunday Ticket and League Pass cover " +
+    "out-of-market games only. Steelers market check: " +
+    '<a href="https://506sports.com/nfl.php" target="_blank" rel="noopener">506 Sports maps</a> for ' + MARKET + ".";
+
+  document.getElementById("svcBtn").addEventListener("click", function(){ toggleServices(); });
+  document.getElementById("svcDone").addEventListener("click", function(){ toggleServices(false); });
+  document.getElementById("prevBtn").addEventListener("click", function(){
+    if (current > DAYS[0]){ current = shift(current,-1); render(); }
+  });
+  document.getElementById("nextBtn").addEventListener("click", function(){
+    if (current < DAYS[6]){ current = shift(current,1); render(); }
+  });
+  document.getElementById("refreshBtn").addEventListener("click", function(){ loadAll(true); });
+
+  // New day while the app sat open: start over. Otherwise, keep today's live scores fresh.
+  document.addEventListener("visibilitychange", function(){
+    if (document.visibilityState !== "visible") return;
+    if (key(new Date()) !== TODAY) { location.reload(); return; }
+    var e = cache[TODAY];
+    if (e && e.state === "ok" && Date.now() - e.fetchedAt > 5*60*1000) fetchDay(TODAY, true);
+  });
+  setInterval(function(){
+    var e = cache[TODAY];
+    if (document.visibilityState !== "visible" || !e || e.state !== "ok") return;
+    var live = ORDER.some(function(lg){ return (e.data[lg]||[]).some(function(g){ return g.state === "in"; }); });
+    if (live) fetchDay(TODAY, true);
+  }, 90 * 1000);
+
+  loadAll(false);
+})();
+</script>
+</body>
+</html>
